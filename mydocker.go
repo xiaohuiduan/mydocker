@@ -64,6 +64,7 @@ func container() {
 	must(syscall.Mount("proc", "proc", "proc", 0, ""))
 	must(cmd.Run())
 	must(syscall.Unmount("proc", 0))
+	fmt.Println("[container]：exit successful!! that good!!")
 }
 
 //this function is for establishing the quasi-daemon process for a docker
@@ -135,12 +136,28 @@ func help() {
 /******************************     assistant functions       *********************/
 
 func must(err error) {
+
 	if err != nil {
-		panic(err)
+		// exit status 130 代表程序为ctrl+c退出，不算异常。
+		/**
+		reference：https://stackoverflow.com/questions/29887088/java-program-exit-with-code-130
+		*/
+		if err.Error() == "exit status 130" {
+			return
+		} else {
+			panic(err)
+		}
 	}
 }
 
+//
+//  runCommand
+//  @Description: et to run a command, for example: ./config/echo.sh hello
+//  @param _cmd: command or script file
+//  @param args: command args
+//
 func runCommand(_cmd string, args ...string) {
+
 	cmd := exec.Command(_cmd, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -149,7 +166,12 @@ func runCommand(_cmd string, args ...string) {
 }
 
 /*******************************    network related functions  *********************/
-
+//
+//  initNet
+//  @Description: 该函数通过读取netJsonPath文件，来判断哪一个ip可以被使用，然后将该ip的状态置1，并写回文件。
+//  @param netJsonPath netJsonPath文件地址
+//  @return string 返回ip地址，例如10.0.0.19
+//
 func initNet(netJsonPath string) string {
 	iPAllocation := util.NewIPAllocation(netJsonPath)
 	newIp := util.AllocationIp(iPAllocation)
@@ -162,6 +184,12 @@ func initNet(netJsonPath string) string {
 	}
 }
 
+//
+//  releaseNet
+//  @Description: 当容器关闭时，需要释放ip，该函数读取netJsonPath，然后将对应的ip的状态置为0，代表该ip未被使用，并写回文件。
+//  @param netJsonPath
+//  @param releaseIp 需要释放的ip
+//
 func releaseNet(netJsonPath string, releaseIp string) {
 	iPAllocation := util.NewIPAllocation(netJsonPath)
 	iPAllocation.Ip[releaseIp] = 0
